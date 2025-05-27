@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code PDF Generator</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h1 class="card-title mb-0">QR Code Generator</h1>
+                        <button id="clearData" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-trash me-1"></i>Clear Data
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <label for="textInput" class="form-label">Enter text below:</label>
+                            <textarea class="form-control" id="textInput" rows="3" placeholder="Enter the text you want to encode in the QR code">https://example.com</textarea>
+                        </div>
+                        
+                        <div id="qrPreview" class="text-center">
+                            <h5>QR Code Preview:</h5>
+                            <div id="qrcode" class="d-flex justify-content-center mb-3">
+                                <canvas id="qrCanvas" class="border"></canvas>
+                            </div>
+                            <div>
+                                <button id="downloadPdf" class="btn btn-success btn-lg" disabled>
+                                    <i class="bi bi-download me-2"></i>Download as PDF (10mm × 10mm)
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="errorMessage" class="alert alert-danger mt-3" style="display: none;"></div>
+                        <div id="statusMessage" class="alert alert-info mt-3" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QRious Library for QR Code Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <script>
+        let qr = null;
+        let currentText = '';
+        let debounceTimer = null;
+
+        // Initialize QR code generator
+        function initQR() {
+            const canvas = document.getElementById('qrCanvas');
+            qr = new QRious({
+                element: canvas,
+                size: 200, // Preview size
+                value: '',
+                foreground: '#000000',
+                background: '#ffffff',
+                level: 'M'
+            });
+        }
+
+        let hasBeenFocused = false; // Track if field has been focused before
+
+        // Add event listeners
+        document.getElementById('textInput').addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(generateQRCode, 300);
+        });
+
+        // Clear example text only on first focus
+        document.getElementById('textInput').addEventListener('focus', function() {
+            if (!hasBeenFocused && this.value === 'https://example.com') {
+                this.value = '';
+                hasBeenFocused = true;
+                // Generate QR code after clearing
+                setTimeout(generateQRCode, 100);
+            }
+        });
+
+        document.getElementById('downloadPdf').addEventListener('click', function() {
+            downloadAsPDF();
+        });
+
+        document.getElementById('clearData').addEventListener('click', function() {
+            clearAllData();
+        });
+
+        function generateQRCode() {
+            const text = document.getElementById('textInput').value.trim();
+            
+            if (!text) {
+                if (qr) {
+                    qr.value = '';
+                }
+                document.getElementById('downloadPdf').disabled = true;
+                hideError();
+                return;
+            }
+            
+            try {
+                currentText = text;
+                hideError();
+                
+                // Update QR code with new text
+                if (qr) {
+                    qr.value = text;
+                    console.log('QR Code generated for:', text);
+                }
+                
+                // Enable download button
+                document.getElementById('downloadPdf').disabled = false;
+                
+            } catch (error) {
+                showError('Error generating QR code: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        function downloadAsPDF() {
+            if (!currentText || !qr) {
+                showError('Please enter some text to generate a QR code first.');
+                return;
+            }
+            
+            try {
+                showStatus('Creating PDF...');
+                
+                // Create new jsPDF instance
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF();
+                
+                // Create a new canvas for high-resolution PDF output
+                const pdfCanvas = document.createElement('canvas');
+                
+                // Calculate size for 10mm at 300 DPI
+                // 10mm = 10/25.4 inches = 0.3937 inches
+                // At 300 DPI: 0.3937 * 300 = 118 pixels
+                const dpi = 300;
+                const mmToInch = 1 / 25.4;
+                const sizePx = Math.round(10 * mmToInch * dpi);
+                
+                console.log('PDF Canvas size:', sizePx, 'pixels for 10mm at', dpi, 'DPI');
+                
+                // Create high-resolution QR code for PDF
+                const pdfQR = new QRious({
+                    element: pdfCanvas,
+                    size: sizePx,
+                    value: currentText,
+                    foreground: '#000000',
+                    background: '#ffffff',
+                    level: 'M'
+                });
+                
+                // Get image data from canvas
+                const imgData = pdfCanvas.toDataURL('image/png');
+                
+                // Calculate PDF size in points - FINAL CORRECTION
+                // First attempt: 28.35 points = 24.25mm
+                // Second attempt: 11.68 points = 11.6mm  
+                // We want: ? points = 10mm
+                
+                // From our measurements:
+                // 11.68 points = 11.6mm
+                // So to get 10mm: 11.68 * (10/11.6) = 10.07 points
+                
+                const targetMM = 10;
+                const currentMM = 11.6; // Your latest measurement
+                const currentPoints = 11.68; // What we used last time
+                const finalPoints = currentPoints * (targetMM / currentMM);
+                
+                console.log('Target size:', targetMM, 'mm');
+                console.log('Previous measured size:', currentMM, 'mm'); 
+                console.log('Previous points used:', currentPoints);
+                console.log('Final corrected points:', finalPoints);
+                
+                // Use the final corrected calculation
+                const pdfSizePt = finalPoints;
+                
+                // Add image to PDF with exact 10mm size
+                pdf.addImage(imgData, 'PNG', 20, 20, pdfSizePt, pdfSizePt);
+                
+                // Add information text
+                pdf.setFontSize(10);
+                const textY = 20 + pdfSizePt + 15;
+                pdf.text('QR Code Content:', 20, textY);
+                
+                // Handle long text by wrapping
+                const maxWidth = 170;
+                const lines = pdf.splitTextToSize(currentText, maxWidth);
+                pdf.text(lines, 20, textY + 10);
+                
+                const finalTextY = textY + 10 + (lines.length * 5);
+                pdf.text('Size: 10mm × 10mm', 20, finalTextY + 10);
+                pdf.text(`Generated: ${new Date().toLocaleString()}`, 20, finalTextY + 20);
+                
+                // Save the PDF
+                pdf.save('qr-code-10mm.pdf');
+                
+                hideStatus();
+                showSuccess('PDF downloaded!');
+                
+            } catch (error) {
+                showError('Error creating PDF: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            hideStatus();
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        function showStatus(message) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.className = 'alert alert-info mt-3';
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+        }
+
+        function hideStatus() {
+            document.getElementById('statusMessage').style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.className = 'alert alert-success mt-3';
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+            
+            setTimeout(() => {
+                hideStatus();
+            }, 3000);
+        }
+
+        function clearAllData() {
+            // Reset the text input to example text
+            document.getElementById('textInput').value = 'https://example.com';
+            
+            // Reset the focus flag so example text will clear again on next focus
+            hasBeenFocused = false;
+            
+            // Clear any error/status messages
+            hideError();
+            hideStatus();
+            
+            // Regenerate the example QR code
+            generateQRCode();
+            
+            console.log('Data cleared - reset to initial state');
+        }
+
+        // Initialize everything when page loads
+        window.addEventListener('load', function() {
+            console.log('Page loaded, initializing QR generator...');
+            initQR();
+            generateQRCode();
+        });
+    </script>
+</body>
+</html>
