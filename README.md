@@ -1,25 +1,27 @@
 # QR Code PDF Generator
 
-A simple, frictionless web application that generates QR codes and allows users to download them as PDFs with precise 10mm × 10mm dimensions. Built with HTML, JavaScript, and Bootstrap for a clean, responsive user experience.
+A simple, frictionless web application that generates QR codes and allows users to download them as PDFs at a configurable square size. Built with HTML, JavaScript, and Bootstrap for a clean, responsive user experience.
 
 ## Features
 
 - **Real-time QR Code Generation**: QR codes generate automatically as you type (300ms debounce)
-- **Precise PDF Output**: Generates QR codes at exactly 10mm × 10mm for print applications
-- **Zero Friction UX**: No buttons to click for generation, auto-clears example text
+- **Configurable PDF Output**: Set any square output size from 5mm to 50mm (default 10mm × 10mm)
+- **Precise Size Calculation**: Uses the exact formula `mm × (72 / 25.4)` for jsPDF point conversion — no empirical correction required
+- **Zero Friction UX**: Field starts empty; clicking into it selects all content so you can type straight over it
+- **Character Count Indicator**: Live count with colour feedback (green ≤300 / amber ≤500 / red >500)
 - **High Quality Output**: 300 DPI resolution for crisp print quality
 - **Responsive Design**: Bootstrap-powered interface that works on all devices
-- **Data Validation**: Supports various data types with appropriate capacity limits
+- **Dynamic File Naming**: Downloaded PDF is named to reflect the chosen size (e.g. `qr-code-25mm.pdf`)
 
 ## Quick Start
 
 1. **Clone or Download**: Save the HTML file to your local machine
 2. **Open in Browser**: Double-click the HTML file or serve it via a web server
-3. **Start Using**: 
-   - Click in the text field (example text auto-clears)
-   - Type your content
-   - QR code appears instantly
-   - Click download to get your 10mm × 10mm PDF
+3. **Start Using**:
+   - Click in the text field and type your content
+   - QR code appears instantly in the preview
+   - Optionally adjust the output size (5–50mm, default 10mm)
+   - Click the download button to get your PDF
 
 ## Technology Stack
 
@@ -42,9 +44,9 @@ The QR code can store different amounts of data depending on the character type:
 
 ### Practical Recommendations
 
-- **URLs**: Keep under 200-300 characters for optimal scanning
-- **Text Content**: Up to 500-800 characters work reliably
-- **Complex Data**: Consider using URL shorteners for longer content
+- **URLs**: Keep under 200–300 characters for optimal scanning (indicated green by the character counter)
+- **Text Content**: Up to 500 characters work reliably (amber warning above 300)
+- **Complex Data**: Consider using URL shorteners for longer content (red warning above 500)
 
 ## File Structure
 
@@ -93,8 +95,10 @@ sms:+1234567890:Hello from QR code!
 ## Technical Specifications
 
 ### QR Code Output
-- **Physical Size**: Exactly 10mm × 10mm (1cm × 1cm)
-- **Resolution**: 300 DPI for print quality
+- **Default Size**: 10mm × 10mm
+- **Size Range**: 5mm × 5mm to 50mm × 50mm (square, user-configurable)
+- **Size Conversion**: `points = mm × (72 / 25.4)` — exact jsPDF point formula
+- **Resolution**: 300 DPI for print quality (`pixels = mm × (300 / 25.4)`)
 - **Error Correction**: Medium level (M)
 - **Format**: PNG embedded in PDF
 
@@ -102,51 +106,53 @@ sms:+1234567890:Hello from QR code!
 - **Page Size**: A4 (210 × 297mm)
 - **QR Position**: 20mm from top-left corner
 - **Additional Info**: Content preview, size confirmation, timestamp
-- **File Naming**: `qr-code-10mm.pdf`
+- **File Naming**: `qr-code-{size}mm.pdf` (e.g. `qr-code-10mm.pdf`)
 
-## Customization
+## Customisation
 
-### Changing QR Code Size
-To modify the output size, update the calculation in the `downloadAsPDF()` function:
+### Changing the Default Size
+The size input defaults to 10mm. To change this, update the `value` attribute on the size input and the reset value in `clearAllData()`:
 
-```javascript
-// Current: 10mm calculation
-const targetMM = 10;
-const currentMM = 11.6;
-const currentPoints = 11.68;
-const finalPoints = currentPoints * (targetMM / currentMM);
-
-// For different size, change targetMM value
-const targetMM = 20; // For 20mm × 20mm
+```html
+<!-- In the HTML -->
+<input type="number" id="sizeInput" value="10" min="5" max="50" step="1">
 ```
 
-### Styling Modifications
-The app uses standard Bootstrap classes. Key elements:
+```javascript
+// In clearAllData()
+document.getElementById('sizeInput').value = 10;
+```
 
-```css
-/* Main container */
-.container.py-5
+### Adjusting the Size Range
+The valid range is controlled in three places — keep them consistent:
 
-/* QR preview area */
-#qrcode
+```html
+<!-- HTML attribute (browser validation) -->
+<input type="number" id="sizeInput" min="5" max="50">
+```
 
-/* Download button */
-.btn.btn-success.btn-lg
+```javascript
+// getTargetMM() — clamps the value used for PDF generation
+if (isNaN(raw) || raw < 5) return 5;
+if (raw > 50)              return 50;
+
+// downloadAsPDF() — validates before generating
+if (isNaN(rawSize) || rawSize < 5 || rawSize > 50) { ... }
 ```
 
 ### Adding Custom Features
-The modular structure makes it easy to add features:
+The modular structure makes it easy to extend:
 
 - **Batch Processing**: Loop through multiple inputs
-- **Custom Styling**: Modify QRious options for colors/logos
+- **Custom Styling**: Modify QRious options for colours/logos
 - **Different Formats**: Add PNG/SVG download options
-- **Size Presets**: Create multiple size options
+- **Non-square Output**: Separate width/height inputs (requires updating `addImage` call)
 
 ## Development
 
 ### Prerequisites
 - Modern web browser with JavaScript enabled
-- No build process required - pure HTML/CSS/JS
+- No build process required — pure HTML/CSS/JS
 
 ### Testing
 Test with various data types:
@@ -164,15 +170,14 @@ Test with various data types:
 - Verify internet connection for external libraries
 
 ### Incorrect PDF Size
-- The app auto-calibrates based on measured output
-- Current calibration: 11.68 points = 11.6mm measured
-- Adjust `finalPoints` calculation if needed
+- The app uses the exact formula `mm × (72 / 25.4)` — no manual calibration needed
+- If a viewer reports a different size, check its own scaling/zoom settings
 
 ### Scanning Issues
-- Ensure adequate quiet zone around printed QR code
-- Use high-quality printer (300+ DPI recommended)
+- Ensure adequate quiet zone around the printed QR code
+- Use a high-quality printer (300+ DPI recommended)
 - Test with multiple QR code reader apps
-- Consider reducing data complexity for small prints
+- Consider reducing data complexity for smaller print sizes (5–10mm)
 
 ## Performance Considerations
 
@@ -204,11 +209,18 @@ Contributions welcome! Areas for improvement:
 
 ## Changelog
 
-### v1.0.0 (Current)
+### v1.1.0 (Current)
+- ✅ Configurable output size (5–50mm) with live button label update
+- ✅ Exact PDF size formula — no empirical correction required
+- ✅ Empty field on load; focus selects all content for instant overtyping
+- ✅ Live character count with colour-coded thresholds (green / amber / red)
+- ✅ Dynamic PDF filename reflects chosen size
+- ✅ Favicon `<link>` tags correctly placed inside `<head>`
+- ✅ Clear Data resets size to 10mm as well as clearing text
+
+### v1.0.0
 - ✅ Real-time QR generation with debouncing
-- ✅ Precise 10mm × 10mm PDF output
-- ✅ Auto-clearing example text
-- ✅ Bootstrap UI with proper icons
+- ✅ PDF output with Bootstrap UI and Bootstrap Icons
 - ✅ High-resolution 300 DPI output
 - ✅ Comprehensive error handling
 
