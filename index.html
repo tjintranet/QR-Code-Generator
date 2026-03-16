@@ -187,10 +187,6 @@
 
                 const targetMM = getTargetMM();
 
-                // jsPDF uses 72 points per inch; 1 inch = 25.4mm
-                // points = mm × (72 / 25.4) — exact, no empirical correction needed
-                const pdfSizePt = targetMM * (72 / 25.4);
-
                 // Render QR at 300 DPI for crisp print output
                 // pixels = mm × (300 / 25.4)
                 const sizePx = Math.round(targetMM * (300 / 25.4));
@@ -206,12 +202,12 @@
 
                 const imgData = pdfCanvas.toDataURL('image/png');
 
-                // Place QR image at exactly targetMM × targetMM
-                pdf.addImage(imgData, 'PNG', 20, 20, pdfSizePt, pdfSizePt);
+                // jsPDF's addImage expects mm — pass targetMM directly
+                pdf.addImage(imgData, 'PNG', 20, 20, targetMM, targetMM);
 
                 // Supplementary text below the QR code
                 pdf.setFontSize(10);
-                const textY = 20 + pdfSizePt + 15;
+                const textY = 20 + targetMM + 15;
                 pdf.text('QR Code Content:', 20, textY);
 
                 const maxWidth = 170;

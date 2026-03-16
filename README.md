@@ -6,7 +6,7 @@ A simple, frictionless web application that generates QR codes and allows users 
 
 - **Real-time QR Code Generation**: QR codes generate automatically as you type (300ms debounce)
 - **Configurable PDF Output**: Set any square output size from 5mm to 50mm (default 10mm × 10mm)
-- **Precise Size Calculation**: Uses the exact formula `mm × (72 / 25.4)` for jsPDF point conversion — no empirical correction required
+- **Correct PDF Sizing**: Dimensions are passed directly to jsPDF in millimetres — no point conversion required
 - **Zero Friction UX**: Field starts empty; clicking into it selects all content so you can type straight over it
 - **Character Count Indicator**: Live count with colour feedback (green ≤300 / amber ≤500 / red >500)
 - **High Quality Output**: 300 DPI resolution for crisp print quality
@@ -97,7 +97,7 @@ sms:+1234567890:Hello from QR code!
 ### QR Code Output
 - **Default Size**: 10mm × 10mm
 - **Size Range**: 5mm × 5mm to 50mm × 50mm (square, user-configurable)
-- **Size Conversion**: `points = mm × (72 / 25.4)` — exact jsPDF point formula
+- **Size Handling**: `targetMM` is passed directly to `pdf.addImage()` — jsPDF's coordinate system is millimetres throughout, no point conversion needed
 - **Resolution**: 300 DPI for print quality (`pixels = mm × (300 / 25.4)`)
 - **Error Correction**: Medium level (M)
 - **Format**: PNG embedded in PDF
@@ -170,7 +170,7 @@ Test with various data types:
 - Verify internet connection for external libraries
 
 ### Incorrect PDF Size
-- The app uses the exact formula `mm × (72 / 25.4)` — no manual calibration needed
+- `pdf.addImage()` takes millimetres directly — `targetMM` is passed straight through with no conversion
 - If a viewer reports a different size, check its own scaling/zoom settings
 
 ### Scanning Issues
@@ -209,9 +209,14 @@ Contributions welcome! Areas for improvement:
 
 ## Changelog
 
-### v1.1.0 (Current)
+### v1.2.0 (Current)
+- ✅ Fixed PDF output size bug: `targetMM` now passed directly to `pdf.addImage()` instead of an incorrectly pre-converted points value
+- ✅ Removed redundant `pdfSizePt` calculation (jsPDF coordinate system is mm throughout — no point conversion required)
+- ✅ Fixed `textY` positioning below QR image (was also using the incorrect points value)
+- ✅ Updated README to remove misleading point-conversion formula references
+
+### v1.1.0
 - ✅ Configurable output size (5–50mm) with live button label update
-- ✅ Exact PDF size formula — no empirical correction required
 - ✅ Empty field on load; focus selects all content for instant overtyping
 - ✅ Live character count with colour-coded thresholds (green / amber / red)
 - ✅ Dynamic PDF filename reflects chosen size
